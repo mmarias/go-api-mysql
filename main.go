@@ -13,6 +13,7 @@ import (
 
 func getUsers(w http.ResponseWriter, r *http.Request) {
 	var users interface{}
+
 	db, err := sql.Open("mysql", "root:12345678@tcp(localhost:3306)/go")
 	if err != nil {
 		fmt.Println(err.Error())
@@ -26,7 +27,7 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 	}
 	defer resp.Close()
-
+	
 	json.NewEncoder(w).Encode(resp)
 	fmt.Println(resp)
 }
