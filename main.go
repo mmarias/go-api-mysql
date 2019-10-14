@@ -24,30 +24,34 @@ type User struct {
 }
 
 func getUsers(w http.ResponseWriter, r *http.Request) {
-	var users []User
-
 	db, err := sql.Open("mysql", "root:12345678@tcp(localhost:3306)/go")
+
 	if err != nil {
-		fmt.Println(err.Error())
-	} else {
-		fmt.Println("db is connected")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ApiResponse{"Error on connect to DB"})
 	}
 
 	defer db.Close()
 
-	resp, err := db.Query("SELECT username, password, status, sex FROM user")
+	result, err := db.Query("SELECT username, password, status, sex FROM user")
 
 	if err != nil {
-		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ApiResponse{"Error on get users"})
 	}
-	defer resp.Close()
+
+	defer result.Close()
 	
-	for resp.Next() {
+	var users []User
+
+	for result.Next() {
 		var user User
 
-		err = resp.Scan(&user.Username, &user.Password, &user.Status, &user.Sex)
-        if err != nil {
-            panic(err.Error()) // proper error handling instead of panic in your app
+		err = result.Scan(&user.Username, &user.Password, &user.Status, &user.Sex)
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ApiResponse{"Error on collect users"})
 		}
 
 		users = append(users, user)
@@ -61,14 +65,13 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ApiResponse{"Error on connecto to DB"})
+		json.NewEncoder(w).Encode(ApiResponse{"Error on connect to DB"})
 	}
 
 	defer db.Close()
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 	
-
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ApiResponse{"Error on request parameters"})
@@ -81,7 +84,6 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 	if newUser.Username == "" || newUser.Password == "" || newUser.Status == "" || newUser.Sex == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ApiResponse{"Error on request parameters"})
-		return
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(newUser.Password), bcrypt.DefaultCost)
@@ -111,22 +113,4 @@ func main() {
 	router.HandleFunc("/", getUsers).Methods("GET")
 	router.HandleFunc("/user", addUser).Methods("POST")
 	log.Fatal(http.ListenAndServe(":8080", router))
-}
-
-func CreateCon() *sql.DB {
-	db, err := sql.Open("mysql", "root:12345678@tcp(localhost:3306)/go")
-	if err != nil {
-		fmt.Println(err.Error())
-	} else {
-		fmt.Println("db is connected")
-	}
-	defer db.Close()
-
-	err = db.Ping()
-	fmt.Println(err)
-	if err != nil {
-		fmt.Println("MySQL db is not connected")
-		fmt.Println(err.Error())
-	}
-	return db
 }
